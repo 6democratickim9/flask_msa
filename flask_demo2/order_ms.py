@@ -8,8 +8,10 @@ import mariadb
 import json
 import uuid
 
+from kafka import KafkaProducer
+
 app = Flask(__name__)
-app.config["DEBUG"] = True
+# app.config["DEBUG"] = True
 api = flask_restful.Api(app)
 
 config = {
@@ -20,21 +22,29 @@ config = {
     'database': 'mydb'
 }
 
-@app.route('/order-ms')
+@app.route('/')
 def index():
     return "Welcome to ORDER Microservice!"
 
 class Order(flask_restful.Resource):
+    def __init__(self):
+        self.conn = mariadb.connect(**config)
+        self.cursor = self.conn.cursor()
+
+        self.producer = KafkaProducer(bootstrap_servers=['localhost:9092'])
+
     def get(self, user_id):
-        conn = mariadb.connect(**config)
-        cursor = conn.cursor()
-        sql = "select * from orders where user_id=? order by id desc"
-        cursor.execute(sql, [user_id])
-        result_set = cursor.fetchall()
+        sql = '''select user_id, order_id, coffee_name, coffee_price, coffee_qty, ordered_at 
+                 from orders where user_id=? order by id desc'''
+        # sql = "select * from orders where user_id=%s order by id desc"
+        self.cursor.execute(sql, [user_id])
+        result_set = self.cursor.fetchall()
+
+        row_headers = [x[0] for x in self.cursor.description]
 
         json_data = []
         for result in result_set:
-            json_data.append(result)
+            json_data.append(dict(zip(row_headers, result)))
 
         return jsonify(json_data)
 
@@ -45,8 +55,23 @@ class Order(flask_restful.Resource):
         json_data['ordered_at'] = str(datetime.today())
 
         # DB insert
+        sql = '''INSERT INTO orders(user_id, order_id, coffee_name, coffee_price, coffee_qty, ordered_at) 
+                    VALUES(?, ?, ?, ?, ?, ?)
+        '''
+        self.cursor.execute(sql, [user_id, 
+                                  json_data['order_id'],
+                                  json_data['coffee_name'],
+                                  json_data['coffee_price'],
+                                  json_data['coffee_qty'],
+                                  json_data['ordered_at']])
+        self.conn.commit()
+
+        # Kafka message send
+        self.producer.send('new_orders', value=json.dumps(json_data).encode())
+        self.producer.flush() 
+
         response = jsonify(json_data)
-        response.status_code = 200 
+        response.status_code = 201
         
         return response
 

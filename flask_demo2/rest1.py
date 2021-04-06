@@ -3,7 +3,11 @@ import flask_restful
 from flask_restful import reqparse
 
 app = Flask(__name__)
-app.config["DEBUG"] = True
+# app.config["DEBUG"] = True
+# $ flask app  <- app.py
+# 실행 파일을 변경하려면, set FLASK_APP=new_file.py
+# 디버그 모드 실행, set FLASK_DEBUG=True -> auto refresh
+
 api = flask_restful.Api(app)
 
 def multiply(param1, param2):
@@ -17,6 +21,7 @@ class HelloWorld(flask_restful.Resource):
     def get(self):
         parser = reqparse.RequestParser()
 
+        # Query String
         # GET /api/multiply?param1=3&param2=4 -> 12
         parser.add_argument('param1')
         parser.add_argument('param2')
