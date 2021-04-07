@@ -4,11 +4,11 @@ import time
 import json
 import threading
 
-import mariadb
+import pymysql
 import uuid
 
 consumer = KafkaConsumer('new_orders',
-                         bootstrap_servers=["localhost:9092"],
+                         bootstrap_servers=["172.19.0.101:9092"],
                          auto_offset_reset='earliest',
                          enable_auto_commit=True,
                          auto_commit_interval_ms=1000,
@@ -16,17 +16,17 @@ consumer = KafkaConsumer('new_orders',
                          )
 
 config = {
-    'host': '127.0.0.1',
+    'host': '172.19.0.3',
     'port': 3306,
     'user': 'root',
-    'password': 'mysql',
+    'password': '',
     'database': 'mydb'
 }
 
-conn = mariadb.connect(**config)
+conn = pymysql.connect(**config)
 cursor = conn.cursor()
 sql = '''INSERT INTO delivery_status(delivery_id, order_json, status)
-            VALUES(?, ?, ?)'''
+            VALUES(%s, %s, %s)'''
 
 def fetch_latest_orders(next_call_in):
     next_call_in += 30

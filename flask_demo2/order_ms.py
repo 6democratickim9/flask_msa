@@ -4,7 +4,7 @@ from flask_restful import reqparse
 from datetime import datetime
 
 import flask_restful
-import mariadb
+import pymysql
 import json
 import uuid
 
@@ -15,10 +15,10 @@ app = Flask(__name__)
 api = flask_restful.Api(app)
 
 config = {
-    'host': '127.0.0.1',
+    'host': '172.19.0.3',
     'port': 3306,
     'user': 'root',
-    'password': 'mysql',
+    'password': '',
     'database': 'mydb'
 }
 
@@ -28,15 +28,13 @@ def index():
 
 class Order(flask_restful.Resource):
     def __init__(self):
-        self.conn = mariadb.connect(**config)
+        self.conn = pymysql.connect(**config)
         self.cursor = self.conn.cursor()
 
-        self.producer = KafkaProducer(bootstrap_servers=['localhost:9092'])
+        self.producer = KafkaProducer(bootstrap_servers=['172.19.0.101:9092'])
 
     def get(self, user_id):
-        sql = '''select user_id, order_id, coffee_name, coffee_price, coffee_qty, ordered_at 
-                 from orders where user_id=? order by id desc'''
-        # sql = "select * from orders where user_id=%s order by id desc"
+        sql = '''select user_id, order_id, coffee_name, coffee_price, coffee_qty, ordered_at from orders where user_id=%s order by id desc'''
         self.cursor.execute(sql, [user_id])
         result_set = self.cursor.fetchall()
 
@@ -56,7 +54,7 @@ class Order(flask_restful.Resource):
 
         # DB insert
         sql = '''INSERT INTO orders(user_id, order_id, coffee_name, coffee_price, coffee_qty, ordered_at) 
-                    VALUES(?, ?, ?, ?, ?, ?)
+                    VALUES(%s, %s, %s, %s, %s, %s)
         '''
         self.cursor.execute(sql, [user_id, 
                                   json_data['order_id'],

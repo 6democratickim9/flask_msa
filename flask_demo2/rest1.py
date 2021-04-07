@@ -1,8 +1,8 @@
 from flask import Flask, jsonify
 import flask_restful
 from flask_restful import reqparse
-
-from flask_consulate import Consul
+import time
+import consul
 
 app = Flask(__name__)
 # app.config["DEBUG"] = True
@@ -54,17 +54,15 @@ class HelloWorld(flask_restful.Resource):
 api.add_resource(HelloWorld, '/api/multiply')
 
 if __name__ == '__main__':
-    consul = Consul(app=app)
-    # consul.apply_remote_config(namespace='mynamespace/')
-    # Register Consul service:
-    consul.register_service(
-        address="127.0.0.1",
-        name='webapp',
-        interval='10s',
-        tags=['webserver', ],
-        port=8000,
-        httpcheck='http://localhost:5000/healthcheck'
-    )
-    
+    service_name = 'my_multiply'
+    consul = consul.Consul()
+    consul.agent.service.register(service_name)
+
+    time.sleep(80 / 1000.0)
+    index, nodes = consul.health.service(service_name)
+    print(index)
+    print(nodes)
+    print("*" * 10)
+
     app.run(port=8000)
 
